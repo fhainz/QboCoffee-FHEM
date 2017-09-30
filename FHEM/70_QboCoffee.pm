@@ -43,7 +43,6 @@ sub QboCoffee_Initialize($) {
   $hash->{AttrList}  = "countCoffees:0,1 ".
                        "disable:0,1 ".
                        "interval ".
-                       "timeout:1,2,3,4,5,6,7,8,9,10 ".
                        $readingFnAttributes;
 }
 
@@ -56,7 +55,6 @@ sub QboCoffee_Define($$) {
   $hash->{NAME} = $param[0];
   $hash->{IP} = $param[2];
   $hash->{INTERVAL} = AttrVal($hash->{NAME}, "interval", 3600);
-  $hash->{TIMEOUT} = AttrVal($hash->{NAME}, "timeout", 4);
   $hash->{helper}{qloudAPIURL} = "https://qloud.qbo.coffee";
   
   $hash->{helper}{qboAPI} = {
@@ -161,10 +159,6 @@ sub QboCoffee_Attr(@) {
       
       RemoveInternalTimer($hash, "QboCoffee_run");
       InternalTimer( gettimeofday() + $hash->{INTERVAL}, "QboCoffee_run", $hash);
-    }
-    elsif( $attr_name eq "timeout" ){
-      $attr_value = 1 if( $attr_value < 1 );
-      $hash->{TIMEOUT} = $attr_value;
     }
   }
   elsif( $cmd eq "del" ){
@@ -291,7 +285,7 @@ sub QboCoffee_getDataFromMachine($$$;$) {
       sslargs => { verify_hostname => 0, SSL_verify_mode => 0 },
       header => { "Content-Type" => "application/json" },
       method   => $method,
-      timeout  => $hash->{TIMEOUT},
+      timeout  => 5,
       noshutdown => 1,
       hash     => $hash,
       callback =>  \&QboCoffee_httpResponse
@@ -548,8 +542,6 @@ sub toReadings($$;$$) {
       coffee counting on/off</li>
     <li>interval<br>
       interval to read from qbo machine</li>
-    <li>timeout<br>
-      timeout</li>
    </ul>
 </ul>
 
@@ -602,8 +594,6 @@ sub toReadings($$;$$) {
       Kaffe Zählung Ein/Aus</li>
     <li><code>interval</code><br>
       Intervall nachdem alle Readings aktualisiert werden</li>
-    <li><code>timeout</code><br>
-      Timeout</li>
   </ul><br>
 </ul>
 
