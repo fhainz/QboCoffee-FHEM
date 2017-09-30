@@ -24,11 +24,14 @@
 ################################################################
 # $Id:$
 ################################################################
+
 package main;
 use strict;
 use warnings;
 use JSON;
 use Time::Piece;
+
+################################################################
 
 sub QboCoffee_Initialize($) {
   my ($hash) = @_;
@@ -55,6 +58,36 @@ sub QboCoffee_Define($$) {
   $hash->{INTERVAL} = AttrVal($hash->{NAME}, "interval", 3600);
   $hash->{TIMEOUT} = AttrVal($hash->{NAME}, "timeout", 4);
   $hash->{helper}{qloudAPIURL} = "https://qloud.qbo.coffee";
+  
+  $hash->{helper}{qboAPI} = {
+      latestFirmware => {
+          apiURL  => $hash->{helper}{qloudAPIURL}."/firmware/latest",
+          method  => "GET",
+          rPrefix => "Latest"
+      },
+      maintenance => {
+          apiURL  => "https://".$hash->{IP}."/status/maintenance",
+          method  => "GET",
+          rPrefix => ""
+      },
+      machineInfo => {
+          apiURL  => "https://".$hash->{IP}."/machineInfo",
+          method  => "GET",
+          rPrefix => ""
+      },
+      name        => {
+          apiURL  => "https://".$hash->{IP}."/settings/name",
+          method  => "GET",
+          rPrefix => ""
+      },
+      settings    => {
+          apiURL  => "https://".$hash->{IP}."/settings",
+          method  => "GET",
+          rPrefix => ""
+      }
+  };
+  
+  
   
   # Tag des Jahres speichern für Reset bei wechsel
   my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
@@ -154,64 +187,98 @@ sub QboCoffee_run($) {
 
 sub QboCoffee_getUpdateAll($) {
   my ($hash) = @_;
-  InternalTimer( gettimeofday() + 0, "QboCoffee_getMaintenance", $hash);
-  InternalTimer( gettimeofday() + $hash->{TIMEOUT}, "QboCoffee_getMachineInfo", $hash);
-  InternalTimer( gettimeofday() + ( $hash->{TIMEOUT} * 2), "QboCoffee_getSettings", $hash);
-  InternalTimer( gettimeofday() + ( $hash->{TIMEOUT} * 3), "QboCoffee_getLatestFirmwareVersion", $hash);
-  InternalTimer( gettimeofday() + ( $hash->{TIMEOUT} * 4), "QboCoffee_getName", $hash);
+
+  $hash->{helper}{queue}{maintenance} = 0;
+  $hash->{helper}{queue}{machineInfo} = 0;
+  $hash->{helper}{queue}{settings} = 0;
+  $hash->{helper}{queue}{latestFirmware} = 0;
+  $hash->{helper}{queue}{name} = 0;
+  
+  QboCoffee_getUpdateAll2($hash);
+  
 }
 
+sub QboCoffee_getUpdateAll2($) {
+  my ($hash) = @_;
+  
+  return if( !$hash->{helper}{queue} );
+  
+  if( $hash->{helper}{queue}{maintenance} == 0 ) {
+    $hash->{helper}{queue}{maintenance} = 1;
+    $hash->{helper}{queue}{currentGet} = "maintenance";
+    QboCoffee_getMaintenance($hash);
+  }
+  elsif( $hash->{helper}{queue}{latestFirmware} == 0 ) {
+    $hash->{helper}{queue}{latestFirmware} = 1;
+    $hash->{helper}{queue}{currentGet} = "latestFirmware";
+    QboCoffee_getLatestFirmwareVersion($hash);
+  }
+  elsif( $hash->{helper}{queue}{machineInfo} == 0 ) {
+    $hash->{helper}{queue}{machineInfo} = 1;
+    $hash->{helper}{queue}{currentGet} = "machineInfo";
+    QboCoffee_getMachineInfo($hash);
+  }
+  elsif( $hash->{helper}{queue}{settings} == 0 ) {
+    $hash->{helper}{queue}{settings} = 1;
+    $hash->{helper}{queue}{currentGet} = "settings";
+    QboCoffee_getSettings($hash);
+  }
+  elsif( $hash->{helper}{queue}{name} == 0 ) {
+    $hash->{helper}{queue}{name} = 1;
+    $hash->{helper}{queue}{currentGet} = "name";
+    QboCoffee_getName($hash);
+  }
+
+}
+
+################################################################
 
 sub QboCoffee_getMachineInfo($) {
   my ($hash) = @_;
-  my $qboAPI = "/machineInfo";
-  my $method = "GET";
-  my $url = "https://".$hash->{IP}.$qboAPI;
-  my $readingsPrefix = "";
+  my $url = $hash->{helper}{qboAPI}{machineInfo}{apiURL};
+  my $method = $hash->{helper}{qboAPI}{machineInfo}{method};
+  my $rPrefix = $hash->{helper}{qboAPI}{machineInfo}{rPrefix};
   readingsSingleUpdate($hash, "activity", "getMachineInfo", 1);
-  QboCoffee_getDataFromMachine($hash, $url, $method, $readingsPrefix);
+  QboCoffee_getDataFromMachine($hash, $url, $method, $rPrefix);
 }
 
 sub QboCoffee_getLatestFirmwareVersion($) {
 	my ($hash) = @_;
-  my $qboAPI = "/firmware/latest";
-  my $method = "GET";
-  my $url = $hash->{helper}{qloudAPIURL}.$qboAPI;
-  my $readingsPrefix = "Latest";
+  my $url = $hash->{helper}{qboAPI}{latestFirmware}{apiURL};
+  my $method = $hash->{helper}{qboAPI}{latestFirmware}{method};
+  my $rPrefix = $hash->{helper}{qboAPI}{latestFirmware}{rPrefix};
   readingsSingleUpdate($hash, "activity", "getLatestFirmware", 1);
-  QboCoffee_getDataFromMachine($hash, $url, $method, $readingsPrefix);
+  QboCoffee_getDataFromMachine($hash, $url, $method, $rPrefix);
 }
 
 sub QboCoffee_getMaintenance($) {
   my ($hash) = @_;
-  my $qboAPI = "/status/maintenance";
-  my $method = "GET";
-  my $url = "https://".$hash->{IP}.$qboAPI;
-  my $readingsPrefix = "";
+  my $url = $hash->{helper}{qboAPI}{maintenance}{apiURL};
+  my $method = $hash->{helper}{qboAPI}{maintenance}{method};
+  my $rPrefix = $hash->{helper}{qboAPI}{maintenance}{rPrefix};
   readingsSingleUpdate($hash, "activity", "getMaintenance", 1);
-  QboCoffee_getDataFromMachine($hash, $url, $method, $readingsPrefix);
+  QboCoffee_getDataFromMachine($hash, $url, $method, $rPrefix);
 }
 
 sub QboCoffee_getName($) {
   my ($hash) = @_;
-  my $qboAPI = "/settings/name";
-  my $method = "GET";
-  my $url = "https://".$hash->{IP}.$qboAPI;
-  my $readingsPrefix = "";
+  my $url = $hash->{helper}{qboAPI}{name}{apiURL};
+  my $method = $hash->{helper}{qboAPI}{name}{method};
+  my $rPrefix = $hash->{helper}{qboAPI}{name}{rPrefix};
   readingsSingleUpdate($hash, "activity", "getName", 1);
-  QboCoffee_getDataFromMachine($hash, $url, $method, $readingsPrefix);
+  QboCoffee_getDataFromMachine($hash, $url, $method, $rPrefix);
 }
 
 sub QboCoffee_getSettings($) {
   my ($hash) = @_;
-  my $qboAPI = "/settings";
-  my $method = "GET";
-  my $url = "https://".$hash->{IP}.$qboAPI;
-  my $readingsPrefix = "";
+  my $url = $hash->{helper}{qboAPI}{settings}{apiURL};
+  my $method = $hash->{helper}{qboAPI}{settings}{method};
+  my $rPrefix = $hash->{helper}{qboAPI}{settings}{rPrefix};
   readingsSingleUpdate($hash, "activity", "getSettings", 1);
-  QboCoffee_getDataFromMachine($hash, $url, $method, $readingsPrefix);
+  QboCoffee_getDataFromMachine($hash, $url, $method, $rPrefix);
 }
 
+################################################################
 
 sub QboCoffee_getDataFromMachine($$$;$) {
 	my ($hash, $url, $method, $readingsPrefix) = @_;
@@ -234,7 +301,6 @@ sub QboCoffee_getDataFromMachine($$$;$) {
     
     HttpUtils_NonblockingGet($param);
 }
-
 
 sub QboCoffee_httpResponse($){
   my ($param, $err, $data) = @_;
@@ -312,11 +378,20 @@ sub QboCoffee_httpResponse($){
       readingsSingleUpdate($hash, "versionUpToDate", $versionUpToDate, 1);
     }
     
+    
+    if( $hash->{helper}{queue} ) {
+      
+      readingsSingleUpdate($hash, "activity", "done", 1);
+      QboCoffee_getUpdateAll2($hash);
+      
+    }
+    
   }
   
 }
 
-# Kafee Zähler
+################################################################
+
 sub QboCoffee_coffeeCnt($$) {
   my ($hash, $content) = @_;
   
@@ -392,11 +467,9 @@ sub QboCoffee_coffeeCntRst($) {
   readingsEndUpdate($hash, 1);
 }
 
+################################################################
 
-
-
-
-sub toReadings($$;$$) {                                                                               
+sub toReadings($$;$$) {
   my ($hash,$ref,$prefix,$suffix) = @_;                                               
   $prefix = "" if( !$prefix );                                                  
   $suffix = "" if( !$suffix );                                                  
@@ -417,13 +490,13 @@ sub toReadings($$;$$) {
   }                                                                             
 }      
 
-                        
+################################################################                      
                                                                                 
 1;
 
 =pod
-=item summary    Control your Qbo coffee machine
-=item summary_DE Steuere deine Qbo Kaffee Maschine
+=item summary    Reads several data from a Qbo coffee machine
+=item summary_DE Liest diverse Daten einer Qbo Kaffee Maschine aus
 =begin html
 
 <a name="QboCoffee"></a>
@@ -432,7 +505,6 @@ sub toReadings($$;$$) {
   Short Description
   <br>
   <br>
-  Discuss the module <a target="_blank" href="http://forum.fhem.de/URL">here</a>.<br>  <br><br>
   <a name="QboCoffee_Define"></a>
   <b>Define</b>
   <ul>
@@ -449,9 +521,25 @@ sub toReadings($$;$$) {
    <a name="QboCoffee_Get"></a>
     <b>Get</b>
     <ul>
-      <li>machineInfo<br>
-        reads machine Infos</li>
-    </ul><br>  
+      <li><code>machineInfo</code><br>
+        reads machine informations</li>
+    </ul><br>
+    <ul>
+      <li><code>maintenance</code><br>
+        reads maintenance informations</li>
+    </ul><br>
+    <ul>
+      <li><code>name</code><br>
+        reads the name of the machine</li>
+    </ul><br>
+    <ul>
+      <li><code>updateAll</code><br>
+        reads all informations</li>
+    </ul><br>
+    <ul>
+      <li><code>versionLatest</code><br>
+        reads the latest firmware version from qbo</li>
+    </ul><br>
 
   <a name="QboCoffee_Attr"></a>
   <b>Attributes</b>
@@ -472,9 +560,7 @@ sub toReadings($$;$$) {
 <a name="QboCoffee"></a>
 <h3>QboCoffee</h3>
 <ul>
-  Kurze Beschreibung<br>
-  <br>
-  Diskutiere das Modul <a target="_blank" href="http://forum.fhem.de/URL">hier</a>.<br>
+  Mit diesem Modul ist es möglich diverse Information einer <a target="_blank" href="http://qbo.coffee">Qbo</a> Kaffemaschine auszulesen.<br>
   <br><br>
   <a name="QboCoffee_Define"></a>
   <b>Define</b>
@@ -489,9 +575,25 @@ sub toReadings($$;$$) {
   <a name="QboCoffee_Get"></a>
     <b>Get</b>
     <ul>
-      <li>machineInfo<br>
-        Liest Maschinen Infos</li>
-    </ul><br> 
+      <li><code>machineInfo</code><br>
+        Liest Maschinen Informationen aus</li>
+    </ul><br>
+    <ul>
+      <li><code>maintenance</code><br>
+        Liest Wartungs Informationen aus</li>
+    </ul><br>
+    <ul>
+      <li><code>name</code><br>
+        Liest den Namen der Maschine aus</li>
+    </ul><br>
+    <ul>
+      <li><code>updateAll</code><br>
+        Liest alle Informationen aus der Maschine aus</li>
+    </ul><br>
+    <ul>
+      <li><code>versionLatest</code><br>
+        Liest die aktuelle Firmware Version von Qbo aus</li>
+    </ul><br>
 
   <a name="QboCoffee_Attr"></a>
   <b>Attributes</b>
@@ -502,7 +604,7 @@ sub toReadings($$;$$) {
       Intervall nachdem alle Readings aktualisiert werden</li>
     <li><code>timeout</code><br>
       Timeout</li>
-  </ul>
+  </ul><br>
 </ul>
 
 =end html_DE

@@ -1,1 +1,2 @@
+  - feature: 70_QboCoffee: updateAll calls are now queued
   - new:     70_QboCoffee: Inital Version
