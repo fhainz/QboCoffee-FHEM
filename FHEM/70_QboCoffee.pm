@@ -319,20 +319,20 @@ sub QboCoffee_httpResponse($){
     # ----------------------------------------------------------------------- #
     
     # Kafee Zähler
-    if( $content->{currentCleanValue} && AttrVal($name, "countCoffees", 1) == 1 ) {
+    if( defined($content->{currentCleanValue}) && AttrVal($name, "countCoffees", 1) == 1 ) {
       QboCoffee_coffeeCnt($hash, $content);
     }
     
     # Kaffee's bis zur nächsten Reinigung
-    if( $content->{currentCleanValue} ) {
+    if( defined($content->{currentCleanValue}) ) {
       my $mCV = ReadingsNum($name, "maximumCleanValue", 0);
       my $cCV = ReadingsNum($name, "currentCleanValue", 0);
-      my $cTC = ( $mCV - $cCV );
+      my $cTC = $mCV - $cCV;
       readingsSingleUpdate($hash, "coffeesTillCleaning", $cTC, 1);
     }
     
     
-    if( $content->{currentDescaleValue} ) {
+    if( defined($content->{currentDescaleValue}) ) {
       
       my $mDV = ReadingsNum($name, "maximumDescaleValue", 0);
       my $cDV = ReadingsNum($name, "currentDescaleValue", 0);
@@ -398,8 +398,8 @@ sub QboCoffee_coffeeCnt($$) {
   my $coffeeCntYr = ReadingsNum($name, "coffeeCountYear", 0);
   
   # Zählen wenn empfangene CleanValue ungleich der letzten CleanValue ist
-  # Value kann durch reset nach der Reinigung auch kleiner sein
-  if( $content->{currentCleanValue} != $ccv ) {
+  # Value kann durch reset nach der Reinigung auch 0 sein
+  if( $content->{currentCleanValue} != $ccv && $content->{currentCleanValue} != 0  ) {
     $coffeeCnt++;
     $coffeeCntTd++;
     $coffeeCntWk++;

@@ -1,3 +1,4 @@
+  - bugfix:  70_QboCoffee: bugfix when values are 0
   - bugfix:  70_QboCoffee: removed timeout attribute 
   - feature: 70_QboCoffee: updateAll calls are now queued
   - new:     70_QboCoffee: Inital Version
