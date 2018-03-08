@@ -149,7 +149,7 @@ sub QboCoffee_Attr(@) {
   my $hash = $defs{$name};
   
   if( $cmd eq "set") {
-  	 
+     
     if( $attr_name eq "interval" ){
       $attr_value = 30 if( $attr_value < 30 );
       $hash->{INTERVAL} = $attr_value;
@@ -169,8 +169,8 @@ sub QboCoffee_Attr(@) {
 ################################################################
 
 sub QboCoffee_run($) {
-	my ($hash) = @_;
-	RemoveInternalTimer($hash, "QboCoffee_run");
+  my ($hash) = @_;
+  RemoveInternalTimer($hash, "QboCoffee_run");
   InternalTimer( gettimeofday() + $hash->{INTERVAL}, "QboCoffee_run", $hash);
   
   return if( !$init_done );
@@ -237,7 +237,7 @@ sub QboCoffee_getMachineInfo($) {
 }
 
 sub QboCoffee_getLatestFirmwareVersion($) {
-	my ($hash) = @_;
+  my ($hash) = @_;
   my $url = $hash->{helper}{qboAPI}{latestFirmware}{apiURL};
   my $method = $hash->{helper}{qboAPI}{latestFirmware}{method};
   my $rPrefix = $hash->{helper}{qboAPI}{latestFirmware}{rPrefix};
@@ -275,11 +275,11 @@ sub QboCoffee_getSettings($) {
 ################################################################
 
 sub QboCoffee_getDataFromMachine($$$;$) {
-	my ($hash, $url, $method, $readingsPrefix) = @_;
-	
-	$hash->{helper}{readingPrefix} = $readingsPrefix;
-	
-	my $param = {
+  my ($hash, $url, $method, $readingsPrefix) = @_;
+  
+  $hash->{helper}{readingPrefix} = $readingsPrefix;
+  
+  my $param = {
       url      => $url,
       httpversion => "1.1",
       sslargs => { verify_hostname => 0, SSL_verify_mode => 0 },
@@ -470,15 +470,15 @@ sub toReadings($$;$$) {
   $suffix = "$suffix" if( $suffix );                                           
                                                                                 
   if(  ref($ref) eq "ARRAY" ) {                                                 
-    while( my ($key,$value) = each $ref) {                                      
+    while( my ($key,$value) = each %{$ref}) {                                      
       toReadings($hash,$value,$prefix.sprintf("%02i",$key+1)."_");                        
     }                                                                           
   } elsif( ref($ref) eq "HASH" ) {                                              
-    while( my ($key,$value) = each $ref) {                                      
+    while( my ($key,$value) = each %{$ref} ) {                                      
       if( ref($value) ) {                                                       
         toReadings($hash,$value,$prefix.$key.$suffix."_");                            
       } else {
-      	  readingsBulkUpdate($hash, $prefix.$key.$suffix, $value);
+          readingsBulkUpdate($hash, $prefix.$key.$suffix, $value);
       }                                                                         
     }                                                                           
   }                                                                             
